@@ -1,0 +1,50 @@
+Model selection
+=================
+This is an R Markdown document. Markdaown is a simple formatting syntax for authoring web pages, and a very nice way of distributing an analysis. It has some very simple syntax rules.
+
+```{r, echo=FALSE}
+library(ISLR)
+summary(Hitters)
+```
+
+There are some missing values here so before we proceed we will remove them:
+
+```{r, echo=FALSE}
+with(Hitters, sum(is.na(Salary)))
+Hitters <- na.omit(Hitters)
+with(Hitters, sum(is.na(Salary)))
+```
+
+Best subset regression
+-------------------------
+We will now use the package 'leaps' to evaluate all the best-subset models.
+```{r}
+#install.packages("leaps")
+library(leaps)
+regfit.full <- regsubsets(Salary ~ ., data = Hitters)
+summary(regfit.full)
+```
+
+It gives by default best subsets up to size 8; let's increase that to 19, i.e. all the variables in Hitters
+
+```{r}
+regfit.full <- regsubsets(Salary ~ ., data = Hitters, nvmax = 19)
+reg.summary <- summary(regfit.full)
+names(reg.summary)
+plot.new()
+plot(reg.summary$cp, xlab = "Number of variables", ylab = "Cp")
+points(10, reg.summary$cp[10], pch = 20, col = "red")
+which.min(reg.summary$cp)
+
+#which(reg.summary$cp < 20)
+```
+
+There is a plot method for the 'regsubset' object
+```{r}
+par(mfrow = c(1,1))
+plot(regfit.full, scale = "Cp")
+coef(regfit.full, 10) # cooefficients for model 10 (with the best Cp)
+```
+
+
+

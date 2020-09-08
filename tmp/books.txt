@@ -1,0 +1,3 @@
+ISBN|TITLE|AUTHOR LAST|AUTHOR FIRST|COPYRIGHT DATE|
+ 067973452X|Notes from Underground|Dostoevsky|Fyodor|August 1994|
+ 067973483X|V chem moya vera|Tolstoy|Lev|July 1888|
