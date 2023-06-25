@@ -1,0 +1,11 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/835073/fada0009e43b4277b9616d7bd654d961
+bundleId: https://api.rpubs.com/api/v1/document/835073/fada0009e43b4277b9616d7bd654d961
+url: http://rpubs.com/akristov/835073
+when: 1636915597.78521
+lastSyncTime: 1636915597.78523

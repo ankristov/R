@@ -1,4 +1,49 @@
 ###########################################
+### How To Connect R With SQL
+###########################################
+# https://predictivehacks.com/how-to-connect-r-with-sql/
+# 1 Connection
+library(DBI)
+con <- dbConnect(RMySQL::MySQL(),
+                 dbname = 'airlines',
+                 host = '127.0.0.1',
+                 port = 8889,
+                 user = 'root',
+                 password = 'root')
+# Remove the Credentials from your Code
+con <- dbConnect(RMySQL::MySQL(),
+                 dbname = 'airlines',
+                 host = '127.0.0.1',
+                 port = 8889,
+                 user = rstudioapi::askForPassword('Database user'),
+                 password = rstudioapi::askForPassword('Database password'))
+
+tables <- dbListTables(con)
+tables
+str(tables)
+
+# 2 Import tables from server to R
+flights <- dbReadTable(con, 'flights')
+head(flights)
+# import all tables
+tables <- dbListTables(con)
+tables <- lapply(tables, dbReadTable, conn = con)
+head(tables[[1]])
+head(tables[[2]])
+head(tables[[3]])
+
+# 3 Import data from queries
+data <- dbGetQuery(con, "select origin, count(*) from flights where origin in ('EWR', 'JFK') group by origin;")
+data
+data <- dbGetQuery(con, "select * from flights;")
+head(data)
+
+query <- dbSendQuery(con, 'select * from flights;')
+dbFetch(query, n = 1) # get the first two rows
+dbFetch(query, n = -1) # get all rows
+dbClearResult(data)
+
+###########################################
 ### Axis breaks like date components
 ###########################################
 
@@ -252,7 +297,19 @@ ggplot(iris, aes(x = Sepal.Length, y = Petal.Width)) +
     )
   )
 ##################################################
-
+# Quick plot of hists of all vatiables
+# https://drsimonj.svbtle.com/quick-plot-of-all-variables
+market_data_fixed[,sapply(market_data_fixed, is.numeric)] %>%
+  gather() %>%
+  ggplot(aes(value)) +
+  facet_wrap(~key, scales = "free") +
+  geom_histogram()
+# or
+market_data_fixed[,sapply(market_data_fixed, is.numeric)] %>%
+  pivot_longer(cols = everything(), names_to="key", values_to="value") %>%
+  ggplot(aes(value)) +
+  facet_wrap(~key, scales = "free") +
+  geom_histogram()
 ##################################################
 # 
 ##################################################

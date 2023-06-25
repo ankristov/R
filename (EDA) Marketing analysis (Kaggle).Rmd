@@ -1,0 +1,184 @@
+---
+title: "JatApp - Marketing Analysis"
+author: "Andrei Kristov"
+date: "11/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# JatApp - Marketing Analysis. Data preparation
+
+```{r}
+library(tidyverse)
+#install.packages("skimr")
+library(skimr)
+#install.packages("VIM")
+library(VIM)
+library(lubridate)
+#install.packages("dlookr")
+#library(dlookr)
+#library(dplyr)
+
+# load data
+market_data <- read.csv("/Users/Andrew/Documents/R/data/JatApp - Marketing analysis/marketing_data.csv", encoding = "utf-8")
+
+head(market_data)
+#summary(market_data)
+#names(market_data)
+#str(market_data)
+```
+## Transform data
+```{r}
+# assign data types to columns
+market_data[,c(3,4,21:28)] <-  lapply(market_data[,c(3,4,21:28)],factor)
+market_data$Income <- as.numeric(gsub("[$,]","",market_data$Income))
+market_data$Dt_Customer <- as.Date(market_data$Dt_Customer,"%m/%d/%y")
+
+str(market_data) 
+```
+## Missing values
+```{r}
+# Missing values
+skimr::skim(market_data)
+missing_values <- market_data %>% summarize_all(funs(sum(is.na(.))/n()))
+head(missing_values)
+missing_values <- gather(missing_values, key = "feature", value = "missing_pct")
+head(missing_values)
+missing_values %>% 
+  ggplot(aes(x = reorder(feature, missing_pct), y = missing_pct)) +
+  geom_bar(stat = "identity", fill = 'red') +
+  coord_flip() + theme_bw()
+# Conclusion: missing values in Income. We can drop rows (only 24) but let's better
+# Impute Income with median by Country+Education
+market_data_fixed <- 
+  market_data %>%
+  group_by(Country, Education) %>%
+  mutate(Income_fixed = ifelse(is.na(Income),
+                               median(Income, na.rm = T),
+                               Income))
+```
+## Check
+```{r}
+# check
+# 1 manually, equallity with group median
+market_data %>% 
+  group_by(Country, Education) %>% summarise(median(Income,na.rm = T))
+view(
+  market_data_fixed %>% filter(is.na(Income)) %>% select(c(Education,Income, Country, Income_fixed))
+  )
+# 2
+sum(is.na(market_data_fixed$Income_fixed))
+
+skimr::skim_tee(market_data_fixed) 
+```
+## Save file for use in Power BI
+```{r}
+#write_csv(market_data_fixed,file = "/Users/Andrew/Documents/R/data/JatApp - Marketing analysis/marketing_data_fixed.csv")
+```
+
+## Outliers
+```{r}
+# Outliers
+summary(market_data_fixed) # outliers in income & income_fixed
+#explore by marital status
+market_data_fixed %>% 
+  select(Marital_Status, Income_fixed) %>%
+  ggplot(aes(Marital_Status, Income_fixed, fill=Marital_Status)) + 
+  geom_boxplot()+
+  scale_fill_brewer(palette = "Set3")
+#explore by country
+market_data_fixed %>% 
+  select(Country, Income_fixed) %>%
+  ggplot(aes(Country, Income_fixed, fill=Country)) + 
+  geom_boxplot() +
+  scale_fill_brewer(palette = "Set3") +
+  scale_y_continuous(labels = scales::dollar)
+# Coclusion: Outliers among Together in SA. Let's leave them.
+```
+## Prepare pivoted dataset for visualization in Power BI
+```{r}
+# pivot data on products to investigate shares sold
+market_data_fixed_pivoted <- market_data_fixed %>%
+  pivot_longer(cols = starts_with("Mnt"), names_to = "Products", values_to = "Amount")
+unique(market_data_fixed_pivoted$Products)
+# rename
+market_data_fixed_pivoted <- market_data_fixed_pivoted %>%
+  mutate(Products = case_when(
+    Products == "MntWines" ~ "Wines",
+    Products == "MntMeatProducts" ~ "Meat",
+    Products == "MntSweetProducts" ~ "Sweet",
+    Products == "MntFruits" ~ "Fruits",
+    Products == "MntFishProducts" ~ "Fish",
+    Products == "MntGoldProds" ~ "Gold",
+  ))
+# save 
+write.csv(market_data_fixed_pivoted,file = "/Users/Andrew/Documents/R/data/JatApp - Marketing analysis/marketing_data_fixed_pivoted.csv")
+```
+
+## Fields investigation
+```{r, include=FALSE}
+pairs(market_data_fixed %>% select(starts_with("Mnt")))
+
+# count of rows for different segments (important for statistical comparison)
+# Country
+market_data_fixed %>%
+  group_by(Country) %>%
+  summarise(n=n()) %>%
+  ggplot(aes(Country,n,fill=Country)) + 
+  geom_col() + scale_fill_brewer(palette = "Set3")
+
+#market_data_fixed %>%
+#  pivot_longer(cols = everything(), names_to="key", values_to="value") #%>%
+#  ggplot(aes(value)) +
+#  facet_wrap(~key, scales = "free") +
+#  geom_col() + scale_fill_brewer(palette = "Set3")
+```
+
+## Histograms of all numeric values
+```{r}
+# histograms of all numeric values
+market_data_fixed_numeric <- market_data_fixed[,sapply(market_data_fixed, is.numeric)]
+market_data_fixed_numeric %>%
+  pivot_longer(cols = everything(), names_to="key", values_to="value") %>%
+  ggplot(aes(value)) +
+  facet_wrap(~key, scales = "free") +
+  geom_histogram()  
+# boxplots of all numeric values
+market_data_fixed_numeric %>%
+  pivot_longer(cols = everything(), names_to="key", values_to="value") %>%
+  ggplot(aes(value)) +
+  facet_wrap(~key, scales = "free") +
+  geom_boxplot() 
+```
+## Correlation
+```{r}
+# correlation
+library(corrplot)
+library(RColorBrewer)
+corrplot(corr = cor(market_data_fixed_numeric),
+         type = "upper",
+         col = brewer.pal(n=length(names(market_data_fixed_numeric)),name = "RdYlBu"))
+```
